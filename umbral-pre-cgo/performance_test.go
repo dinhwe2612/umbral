@@ -35,7 +35,7 @@ func BenchmarkStreamEncryptionDecryption(b *testing.B) {
 				}
 
 				// Encrypt
-				encrypted, err := EncryptChunk(encryptor, testData)
+				encrypted, err := encryptor.EncryptChunk(testData)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -47,7 +47,7 @@ func BenchmarkStreamEncryptionDecryption(b *testing.B) {
 					b.Fatal(err)
 				}
 
-				decrypted, err := DecryptChunkOriginal(decryptor, encrypted)
+				decrypted, err := decryptor.DecryptChunk(encrypted)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -132,7 +132,7 @@ func BenchmarkConcurrentChunkEncryption(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, err := EncryptChunk(encryptor, testData)
+			_, err := encryptor.EncryptChunk(testData)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -171,7 +171,7 @@ func TestStreamEncryptionThroughput(t *testing.T) {
 			var totalEncryptedLen int64
 
 			for i := 0; i < numChunks; i++ {
-				encrypted, err := EncryptChunk(encryptor, chunk)
+				encrypted, err := encryptor.EncryptChunk(chunk)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -215,7 +215,7 @@ func TestStreamDecryptionThroughput(t *testing.T) {
 	numChunks := 100
 	encryptedChunks := make([][]byte, numChunks)
 	for i := 0; i < numChunks; i++ {
-		encrypted, err := EncryptChunk(encryptor, chunk)
+		encrypted, err := encryptor.EncryptChunk(chunk)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -233,7 +233,7 @@ func TestStreamDecryptionThroughput(t *testing.T) {
 	var totalDecryptedLen int64
 
 	for i := 0; i < numChunks; i++ {
-		decrypted, err := DecryptChunkOriginal(decryptor, encryptedChunks[i])
+		decrypted, err := decryptor.DecryptChunk(encryptedChunks[i])
 		if err != nil {
 			t.Fatal(err)
 		}
