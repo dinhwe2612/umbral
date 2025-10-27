@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	umbralprecgo "github.com/vlsilver/umbral/umbral-pre-cgo"
+	umbralprecgo "github.com/dinhwe2612/umbral/umbral-pre-cgo"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-module github.com/dinhwe2612/umbra/umbral-pre-cgo
+module github.com/dinhwe2612/umbral/umbral-pre-cgo
 
 go 1.24.0
 

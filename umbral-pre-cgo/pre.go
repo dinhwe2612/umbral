@@ -241,3 +241,66 @@ func GenerateEthereumKeyPair() ([]byte, []byte, error) {
 
 	return privateKeyBytes, publicKeyBytes, nil
 }
+
+// CreateStreamEncryptor creates a stream encryptor for chunk-by-chunk encryption
+func CreateStreamEncryptor(publicKeyBytes []byte) (*StreamEncryptorGo, []byte, error) {
+	// Convert Ethereum public key bytes to Umbral public key
+	umbralPK, err := GeneratePublicKeyFromBytes(publicKeyBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer umbralPK.Free()
+
+	// Create stream encryptor
+	encryptor, err := NewStreamEncryptorGo(umbralPK)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get capsule for later use
+	capsule := encryptor.Capsule()
+	defer capsule.Free()
+
+	capsuleBytes, err := capsuleToBytes(capsule)
+	if err != nil {
+		encryptor.Free()
+		return nil, nil, err
+	}
+
+	return encryptor, capsuleBytes, nil
+}
+
+// EncryptChunk encrypts a single chunk using the stream encryptor
+func EncryptChunk(encryptor *StreamEncryptorGo, chunk []byte) ([]byte, error) {
+	return encryptor.EncryptChunk(chunk)
+}
+
+// CreateStreamDecryptorOriginal creates a stream decryptor for the original owner
+func CreateStreamDecryptorOriginal(privateKeyBytes []byte, capsuleBytes []byte) (*StreamDecryptorGo, error) {
+	// Convert Ethereum private key bytes to Umbral secret key
+	umbralSK, err := GenerateSecretKeyFromBytes(privateKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	defer umbralSK.Free()
+
+	// Convert capsule bytes back to capsule
+	capsule, err := capsuleFromBytes(capsuleBytes)
+	if err != nil {
+		return nil, err
+	}
+	defer capsule.Free()
+
+	// Create stream decryptor
+	decryptor, err := NewStreamDecryptorOriginal(umbralSK, capsule)
+	if err != nil {
+		return nil, err
+	}
+
+	return decryptor, nil
+}
+
+// DecryptChunkOriginal decrypts a single chunk using the stream decryptor
+func DecryptChunkOriginal(decryptor *StreamDecryptorGo, encryptedChunk []byte) ([]byte, error) {
+	return decryptor.DecryptChunk(encryptedChunk)
+}

@@ -81,6 +81,70 @@ func TestE2EWorkflow(t *testing.T) {
 	}
 }
 
+// TestStreamEncryptionDecryptionChunks tests complete chunk-by-chunk workflow
+func TestStreamEncryptionDecryptionChunks(t *testing.T) {
+	t.Log("Testing chunk-by-chunk encryption and decryption...")
+
+	// Step 1: Generate key pair
+	t.Log("Step 1: Generating Ethereum key pair...")
+	privateKeyBytes, publicKeyBytes, err := GenerateEthereumKeyPair()
+	if err != nil {
+		t.Fatalf("Failed to generate key pair: %v", err)
+	}
+
+	// Step 2: Create stream encryptor
+	t.Log("Step 2: Creating stream encryptor...")
+	encryptor, capsuleBytes, err := CreateStreamEncryptor(publicKeyBytes)
+	if err != nil {
+		t.Fatalf("Failed to create stream encryptor: %v", err)
+	}
+	defer encryptor.Free()
+
+	// Step 3: Encrypt chunks
+	t.Log("Step 3: Encrypting file chunks...")
+	chunks := [][]byte{
+		[]byte("This is chunk 1 of a large file."),
+		[]byte("This is chunk 2 of a large file."),
+		[]byte("This is chunk 3 - the final chunk!"),
+	}
+
+	encryptedChunks := make([][]byte, len(chunks))
+	for i, chunk := range chunks {
+		encrypted, err := EncryptChunk(encryptor, chunk)
+		if err != nil {
+			t.Fatalf("Failed to encrypt chunk %d: %v", i+1, err)
+		}
+		encryptedChunks[i] = encrypted
+		t.Logf("Encrypted chunk %d: %d bytes -> %d bytes", i+1, len(chunk), len(encrypted))
+	}
+
+	// Step 4: Create stream decryptor
+	t.Log("Step 4: Creating stream decryptor...")
+	decryptor, err := CreateStreamDecryptorOriginal(privateKeyBytes, capsuleBytes)
+	if err != nil {
+		t.Fatalf("Failed to create stream decryptor: %v", err)
+	}
+	defer decryptor.Free()
+
+	// Step 5: Decrypt chunks
+	t.Log("Step 5: Decrypting chunks...")
+	for i, encryptedChunk := range encryptedChunks {
+		decrypted, err := DecryptChunkOriginal(decryptor, encryptedChunk)
+		if err != nil {
+			t.Fatalf("Failed to decrypt chunk %d: %v", i+1, err)
+		}
+
+		// Verify decrypted matches original
+		if string(decrypted) != string(chunks[i]) {
+			t.Errorf("Chunk %d mismatch: expected %q, got %q", i+1, string(chunks[i]), string(decrypted))
+		} else {
+			t.Logf("✅ Chunk %d decrypted successfully: %q", i+1, string(decrypted))
+		}
+	}
+
+	t.Log("✅ Stream encryption/decryption test completed successfully!")
+}
+
 // TestE2EWorkflowWithValidation tests the complete workflow with key validation
 func TestE2EWorkflowWithValidation(t *testing.T) {
 	// Step 1: Generate and validate Ethereum key pairs

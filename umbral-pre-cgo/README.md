@@ -40,6 +40,56 @@ cd umbral/umbral-pre-cgo
 make build  # Builds Rust library and Go bindings
 ```
 
+## 🔧 Building Platform-Specific Libraries
+
+If you need to build the Rust library for your specific platform:
+
+### macOS (Darwin)
+
+```bash
+cd umbral-pre
+cargo build --release --features bindings-c
+cp target/release/libumbral_pre.dylib ../umbral-pre-cgo/lib/
+```
+
+### Linux
+
+```bash
+cd umbral-pre
+cargo build --release --features bindings-c
+cp target/release/libumbral_pre.so ../umbral-pre-cgo/lib/
+```
+
+### Windows
+
+```bash
+cd umbral-pre
+cargo build --release --features bindings-c
+copy target\release\umbral_pre.dll ..\umbral-pre-cgo\lib\
+```
+
+### Cross-Compiling for Different Platforms
+
+If you need to build for a different platform (e.g., building macOS library from Linux):
+
+**For macOS (arm64):**
+```bash
+rustup target add aarch64-apple-darwin
+cd umbral-pre
+cargo build --release --features bindings-c --target aarch64-apple-darwin
+cp target/aarch64-apple-darwin/release/libumbral_pre.dylib ../umbral-pre-cgo/lib/
+```
+
+**For macOS (x86_64):**
+```bash
+rustup target add x86_64-apple-darwin
+cd umbral-pre
+cargo build --release --features bindings-c --target x86_64-apple-darwin
+cp target/x86_64-apple-darwin/release/libumbral_pre.dylib ../umbral-pre-cgo/lib/
+```
+
+**Tip:** Always rebuild the Rust library with `--features bindings-c` to include the latest functions. Each platform outputs a different file format.
+
 ### Basic Usage
 
 ```go

@@ -911,6 +911,43 @@ pub extern "C" fn umbral_stream_encryptor_capsule(encryptor: StreamEncryptorPtr)
 }
 
 #[no_mangle]
+pub extern "C" fn umbral_stream_encryptor_encrypt_chunk(
+    encryptor: StreamEncryptorPtr,
+    chunk: *const u8,
+    chunk_len: usize,
+    ciphertext_out: *mut ByteBuffer,
+    error_out: *mut UmbralError,
+) -> i32 {
+    if encryptor.is_null() || chunk.is_null() || ciphertext_out.is_null() {
+        if !error_out.is_null() {
+            unsafe {
+                *error_out = UmbralError::from_string(-1, "Null pointer passed".into());
+            }
+        }
+        return -1;
+    }
+
+    unsafe {
+        let chunk_slice = slice::from_raw_parts(chunk, chunk_len);
+        match (*encryptor).encrypt_chunk(chunk_slice) {
+            Ok(encrypted) => {
+                *ciphertext_out = ByteBuffer::from_boxed_slice(encrypted);
+                if !error_out.is_null() {
+                    *error_out = UmbralError::success();
+                }
+                0
+            }
+            Err(e) => {
+                if !error_out.is_null() {
+                    *error_out = UmbralError::from_string(-2, format!("{:?}", e).into());
+                }
+                -2
+            }
+        }
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn umbral_stream_encryptor_process(
     encryptor: StreamEncryptorPtr,
     read_callback: ReadCallback,
@@ -1042,6 +1079,43 @@ pub extern "C" fn umbral_stream_decryptor_free(decryptor: StreamDecryptorPtr) {
     if !decryptor.is_null() {
         unsafe {
             let _ = Box::from_raw(decryptor);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn umbral_stream_decryptor_decrypt_chunk(
+    decryptor: StreamDecryptorPtr,
+    encrypted_chunk: *const u8,
+    encrypted_chunk_len: usize,
+    plaintext_out: *mut ByteBuffer,
+    error_out: *mut UmbralError,
+) -> i32 {
+    if decryptor.is_null() || encrypted_chunk.is_null() || plaintext_out.is_null() {
+        if !error_out.is_null() {
+            unsafe {
+                *error_out = UmbralError::from_string(-1, "Null pointer passed".into());
+            }
+        }
+        return -1;
+    }
+
+    unsafe {
+        let encrypted_slice = slice::from_raw_parts(encrypted_chunk, encrypted_chunk_len);
+        match (*decryptor).decrypt_chunk(encrypted_slice) {
+            Ok(plaintext) => {
+                *plaintext_out = ByteBuffer::from_boxed_slice(plaintext);
+                if !error_out.is_null() {
+                    *error_out = UmbralError::success();
+                }
+                0
+            }
+            Err(e) => {
+                if !error_out.is_null() {
+                    *error_out = UmbralError::from_string(-2, format!("{:?}", e).into());
+                }
+                -2
+            }
         }
     }
 }

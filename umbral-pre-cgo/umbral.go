@@ -175,6 +175,14 @@ int32_t umbral_stream_encryptor_new(
 void umbral_stream_encryptor_free(StreamEncryptorPtr encryptor);
 CapsulePtr umbral_stream_encryptor_capsule(StreamEncryptorPtr encryptor);
 
+int32_t umbral_stream_encryptor_encrypt_chunk(
+    StreamEncryptorPtr encryptor,
+    const uint8_t* chunk,
+    size_t chunk_len,
+    ByteBuffer* ciphertext_out,
+    UmbralError* error_out
+);
+
 int32_t umbral_stream_encryptor_process(
     StreamEncryptorPtr encryptor,
     ReadCallback read_callback,
@@ -187,6 +195,16 @@ int32_t umbral_stream_decryptor_new_original(
     SecretKeyPtr sk,
     CapsulePtr capsule,
     StreamDecryptorPtr* decryptor_out,
+    UmbralError* error_out
+);
+
+void umbral_stream_decryptor_free(StreamDecryptorPtr decryptor);
+
+int32_t umbral_stream_decryptor_decrypt_chunk(
+    StreamDecryptorPtr decryptor,
+    const uint8_t* encrypted_chunk,
+    size_t encrypted_chunk_len,
+    ByteBuffer* plaintext_out,
     UmbralError* error_out
 );
 
@@ -779,6 +797,53 @@ func (se *StreamEncryptorGo) free() {
 	}
 }
 
+// Free explicitly releases resources associated with the stream encryptor
+func (se *StreamEncryptorGo) Free() {
+	se.free()
+}
+
+// Capsule returns the capsule associated with this stream encryptor
+func (se *StreamEncryptorGo) Capsule() *Capsule {
+	if se.ptr == nil {
+		return nil
+	}
+	capsulePtr := C.umbral_stream_encryptor_capsule(se.ptr)
+	if capsulePtr == nil {
+		return nil
+	}
+	capsule := &Capsule{ptr: capsulePtr}
+	runtime.SetFinalizer(capsule, (*Capsule).Free)
+	return capsule
+}
+
+// EncryptChunk encrypts a single chunk of data
+func (se *StreamEncryptorGo) EncryptChunk(chunk []byte) ([]byte, error) {
+	var ciphertextOut C.ByteBuffer
+	var errorOut C.UmbralError
+
+	chunkPtr := (*C.uint8_t)(C.CBytes(chunk))
+	defer C.free(unsafe.Pointer(chunkPtr))
+
+	result := C.umbral_stream_encryptor_encrypt_chunk(
+		se.ptr,
+		chunkPtr,
+		C.size_t(len(chunk)),
+		&ciphertextOut,
+		&errorOut,
+	)
+
+	if result != 0 {
+		defer C.umbral_error_free(errorOut)
+		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
+		return nil, &Error{Code: int(errorOut.code), Message: msg}
+	}
+
+	ciphertext := C.GoBytes(unsafe.Pointer(ciphertextOut.data), C.int(ciphertextOut.len))
+	C.umbral_byte_buffer_free(ciphertextOut)
+
+	return ciphertext, nil
+}
+
 // encryptStream encrypts data from reader and writes to writer
 // This makes ONLY ONE call to Rust, which then handles all chunks via callbacks
 func (se *StreamEncryptorGo) encryptStream(reader io.Reader, writer io.Writer) error {
@@ -878,6 +943,39 @@ func (sd *StreamDecryptorGo) free() {
 		C.umbral_stream_decryptor_free(sd.ptr)
 		sd.ptr = nil
 	}
+}
+
+// Free explicitly releases resources associated with the stream decryptor
+func (sd *StreamDecryptorGo) Free() {
+	sd.free()
+}
+
+// DecryptChunk decrypts a single encrypted chunk
+func (sd *StreamDecryptorGo) DecryptChunk(encryptedChunk []byte) ([]byte, error) {
+	var plaintextOut C.ByteBuffer
+	var errorOut C.UmbralError
+
+	chunkPtr := (*C.uint8_t)(C.CBytes(encryptedChunk))
+	defer C.free(unsafe.Pointer(chunkPtr))
+
+	result := C.umbral_stream_decryptor_decrypt_chunk(
+		sd.ptr,
+		chunkPtr,
+		C.size_t(len(encryptedChunk)),
+		&plaintextOut,
+		&errorOut,
+	)
+
+	if result != 0 {
+		defer C.umbral_error_free(errorOut)
+		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
+		return nil, &Error{Code: int(errorOut.code), Message: msg}
+	}
+
+	plaintext := C.GoBytes(unsafe.Pointer(plaintextOut.data), C.int(plaintextOut.len))
+	C.umbral_byte_buffer_free(plaintextOut)
+
+	return plaintext, nil
 }
 
 // decryptStream decrypts data from reader and writes to writer
