@@ -8,6 +8,17 @@ Go bindings for the Umbral Proxy Re-encryption library with Ethereum key support
 
 **Version**: v0.11.0-go (based on umbral-pre v0.11.0)
 
+## 📦 Cross-Platform Support
+
+Libraries for **Linux**, **macOS**, and **Windows** are included in this repo!
+
+Libraries in `lib/`:
+- `libumbral_pre.so` (Linux)
+- `libumbral_pre.dylib` (macOS)  
+- `umbral_pre.dll` (Windows)
+
+These are automatically updated on every push to `main` via GitHub Actions.
+
 ## 🚀 Quick Start
 
 ### Installation

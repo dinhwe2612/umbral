@@ -3,7 +3,7 @@ package umbralprecgo
 /*
 #cgo windows LDFLAGS: -L./lib -lumbral_pre
 #cgo linux LDFLAGS: -L./lib -Wl,-rpath,./lib -lumbral_pre -ldl -lm
-#cgo darwin LDFLAGS: -L./lib -lumbral_pre -framework Security -framework Foundation
+#cgo darwin LDFLAGS: -L./lib -Wl,-rpath,./lib -lumbral_pre -framework Security -framework Foundation
 #cgo CFLAGS: -I../umbral-pre/src
 #include <stdlib.h>
 #include <stdint.h>

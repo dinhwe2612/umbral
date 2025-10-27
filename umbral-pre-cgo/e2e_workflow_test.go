@@ -1,6 +1,7 @@
 package umbralprecgo
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -77,7 +78,7 @@ func TestE2EWorkflow(t *testing.T) {
 	if string(decrypted) != string(plaintext) {
 		t.Errorf("Decryption failed: expected %s, got %s", string(plaintext), string(decrypted))
 	} else {
-		t.Log("✅ E2E workflow completed successfully!")
+		t.Log("E2E workflow completed successfully!")
 	}
 }
 
@@ -110,7 +111,7 @@ func TestStreamEncryptionDecryptionChunks(t *testing.T) {
 
 	encryptedChunks := make([][]byte, len(chunks))
 	for i, chunk := range chunks {
-		encrypted, err := EncryptChunk(encryptor, chunk)
+		encrypted, err := encryptor.EncryptChunk(chunk)
 		if err != nil {
 			t.Fatalf("Failed to encrypt chunk %d: %v", i+1, err)
 		}
@@ -129,7 +130,7 @@ func TestStreamEncryptionDecryptionChunks(t *testing.T) {
 	// Step 5: Decrypt chunks
 	t.Log("Step 5: Decrypting chunks...")
 	for i, encryptedChunk := range encryptedChunks {
-		decrypted, err := DecryptChunkOriginal(decryptor, encryptedChunk)
+		decrypted, err := decryptor.DecryptChunk(encryptedChunk)
 		if err != nil {
 			t.Fatalf("Failed to decrypt chunk %d: %v", i+1, err)
 		}
@@ -138,18 +139,98 @@ func TestStreamEncryptionDecryptionChunks(t *testing.T) {
 		if string(decrypted) != string(chunks[i]) {
 			t.Errorf("Chunk %d mismatch: expected %q, got %q", i+1, string(chunks[i]), string(decrypted))
 		} else {
-			t.Logf("✅ Chunk %d decrypted successfully: %q", i+1, string(decrypted))
+			t.Logf("Chunk %d decrypted successfully: %q", i+1, string(decrypted))
 		}
 	}
 
-	t.Log("✅ Stream encryption/decryption test completed successfully!")
+	t.Log("Stream encryption/decryption test completed successfully!")
 }
 
-// TestE2EWorkflowWithValidation tests the complete workflow with key validation
-func TestE2EWorkflowWithValidation(t *testing.T) {
-	// Step 1: Generate and validate Ethereum key pairs
-	t.Log("Step 1: Generating and validating Ethereum key pairs...")
+// TestStreamE2EWorkflow tests the complete Umbral workflow using stream encryptor and decryptor
+func TestStreamE2EWorkflow(t *testing.T) {
+	// Step 1: Alice generates Ethereum key pair
+	alicePrivateKeyBytes, alicePublicKeyBytes, err := GenerateEthereumKeyPair()
+	if err != nil {
+		t.Fatalf("Failed to generate Alice key pair: %v", err)
+	}
 
+	// Step 2: Bob generates Ethereum key pair
+	bobPrivateKeyBytes, bobPublicKeyBytes, err := GenerateEthereumKeyPair()
+	if err != nil {
+		t.Fatalf("Failed to generate Bob key pair: %v", err)
+	}
+
+	// Step 3: Alice encrypts data chunks
+	t.Log("Step 3: Alice encrypting data chunks...")
+	chunks := make([][]byte, 100)
+	for i := range chunks {
+		chunks[i] = make([]byte, 1024)
+		for j := range chunks[i] {
+			chunks[i][j] = byte(j)
+		}
+	}
+
+	encryptedChunks := make([][]byte, len(chunks))
+	encryptor, capsuleBytes, err := CreateStreamEncryptor(alicePublicKeyBytes)
+	if err != nil {
+		t.Fatalf("Failed to create stream encryptor: %v", err)
+	}
+	defer encryptor.Free()
+	for i, chunk := range chunks {
+		encrypted, err := encryptor.EncryptChunk(chunk)
+		if err != nil {
+			t.Fatalf("Failed to encrypt chunk %d: %v", i+1, err)
+		}
+		encryptedChunks[i] = encrypted
+		t.Logf("Encrypted chunk %d: %d bytes -> %d bytes", i+1, len(chunk), len(encrypted))
+	}
+
+	// Step 4: Alice creates rekey for Bob
+	t.Log("Step 4: Alice creating rekey for Bob...")
+	kfragBytes, err := CreateRekey(alicePrivateKeyBytes, bobPublicKeyBytes)
+	if err != nil {
+		t.Fatalf("Failed to create rekey: %v", err)
+	}
+
+	// Step 5: Bob re-encrypts capsule
+	t.Log("Step 5: Bob re-encrypting capsule...")
+	cfragBytes, err := ReencryptCapsule(
+		capsuleBytes,
+		kfragBytes,
+		alicePublicKeyBytes,
+		alicePublicKeyBytes,
+		bobPublicKeyBytes,
+	)
+	if err != nil {
+		t.Fatalf("Failed to re-encrypt capsule: %v", err)
+	}
+	t.Logf("Capsule fragment bytes length: %d", len(cfragBytes))
+
+	// Step 6: Bob decrypts data chunks using stream decryptor
+	t.Log("Step 6: Bob decrypting data chunks...")
+	decryptor, err := CreateStreamDecryptorReencrypted(bobPrivateKeyBytes, alicePublicKeyBytes, capsuleBytes, cfragBytes)
+	if err != nil {
+		t.Fatalf("Failed to create stream decryptor: %v", err)
+	}
+	defer decryptor.Free()
+	for i, encryptedChunk := range encryptedChunks {
+		decrypted, err := decryptor.DecryptChunk(encryptedChunk)
+		if err != nil {
+			t.Fatalf("Failed to decrypt chunk %d: %v", i+1, err)
+		}
+		if !bytes.Equal(decrypted, chunks[i]) {
+			t.Errorf("Chunk %d mismatch: expected %q, got %q", i+1, string(chunks[i]), string(decrypted))
+		} else {
+			t.Logf("Chunk %d decrypted successfully: %q", i+1, string(decrypted))
+		}
+	}
+
+	t.Log("Stream E2E workflow completed successfully!")
+}
+
+func TestE2EWorkflowWithValidation(t *testing.T) {
+	// Step 1: Generate Ethereum key pairs
+	t.Log("Step 1: Generating Ethereum key pairs...")
 	delegatingPrivateKeyBytes, delegatingPublicKeyBytes, err := GenerateEthereumKeyPair()
 	if err != nil {
 		t.Fatalf("Failed to generate delegating key pair: %v", err)
@@ -205,7 +286,7 @@ func TestE2EWorkflowWithValidation(t *testing.T) {
 	if string(decrypted) != string(plaintext) {
 		t.Errorf("Decryption failed: expected %s, got %s", string(plaintext), string(decrypted))
 	} else {
-		t.Log("✅ E2E workflow with validation completed successfully!", string(decrypted))
-		t.Log("✅ E2E workflow with validation completed successfully!", string(plaintext))
+		t.Log("E2E workflow with validation completed successfully!", string(decrypted))
+		t.Log("E2E workflow with validation completed successfully!", string(plaintext))
 	}
 }
