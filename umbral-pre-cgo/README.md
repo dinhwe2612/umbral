@@ -12,13 +12,32 @@ Go bindings for the Umbral Proxy Re-encryption library with Ethereum key support
 
 ### Installation
 
+#### Option 1: Using `go get` (Recommended)
 ```bash
-# Install Rust (if not already installed)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
+go get github.com/dinhwe2612/umbral/umbral-pre-cgo
+```
 
-# Install the library
-go get github.com/vlsilver/umbral/umbral-pre-cgo
+> **Important**: You need to set the library path once per terminal session:
+> ```bash
+> export LD_LIBRARY_PATH=$(go list -m -f '{{.Dir}}' github.com/dinhwe2612/umbral/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH
+> ```
+> 
+> Then you can run your program normally:
+> ```bash
+> go run main.go
+> ```
+> 
+> Or add to your `~/.bashrc` or `~/.zshrc` for permanent setup:
+> ```bash
+> echo 'export LD_LIBRARY_PATH=$(go list -m -f "{{.Dir}}" github.com/dinhwe2612/umbral/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
+> ```
+
+#### Option 2: Build from source
+If you want to modify the code or need a custom build:
+```bash
+git clone https://github.com/dinhwe2612/umbral.git
+cd umbral/umbral-pre-cgo
+make build  # Builds Rust library and Go bindings
 ```
 
 ### Basic Usage
@@ -201,25 +220,28 @@ CMD ["./app"]
 
 ## 🐛 Troubleshooting
 
-### Build Issues
+### Shared Library Loading Error
 
+If you get `error while loading shared libraries: libumbral_pre.so: cannot open shared object file`:
+
+**Quick fix (one line):**
 ```bash
-# Ensure Rust is installed
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
-
-# Clean and rebuild
-cd umbral-pre
-cargo clean
-cargo build --release --features bindings-c
+export LD_LIBRARY_PATH=$(go list -m -f '{{.Dir}}' github.com/dinhwe2612/umbral/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH && go run main.go
 ```
+
+**Permanent setup (recommended):**
+Add this line to your `~/.bashrc` or `~/.zshrc`:
+```bash
+export LD_LIBRARY_PATH=$(go list -m -f "{{.Dir}}" github.com/dinhwe2612/umbral/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH
+```
+
+Then restart your terminal or run `source ~/.bashrc`.
 
 ### CGO Issues
 
 ```bash
-# Set CGO environment
+# Ensure CGO is enabled
 export CGO_ENABLED=1
-export CGO_LDFLAGS="-L$(pwd)/../target/release -lumbral_pre"
 ```
 
 ## 📚 Examples
