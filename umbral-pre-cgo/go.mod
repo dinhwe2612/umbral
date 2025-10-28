@@ -1,4 +1,4 @@
-module github.com/dinhwe2612/umbral-pre-cgo
+module github.com/dinhwe2612/umbral/umbral-pre-cgo
 
 go 1.24.0
 
@@ -14,3 +14,5 @@ require (
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 )
+
+replace github.com/dinhwe2612/umbral-pre-cgo => /Users/vl-ortho/pila/dinh-umbral/umbral/umbral-pre-cgo

@@ -34,12 +34,12 @@ These are automatically updated on every push to `main` via GitHub Actions.
 
 #### Option 1: Using `go get` (Recommended)
 ```bash
-go get github.com/dinhwe2612/umbral-pre-cgo
+go get github.com/dinhwe2612/umbral/umbral-pre-cgo
 ```
 
 > **Important**: You need to set the library path once per terminal session:
 > ```bash
-> export LD_LIBRARY_PATH=$(go list -m -f '{{.Dir}}' github.com/dinhwe2612/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH
+> export LD_LIBRARY_PATH=$(go list -m -f '{{.Dir}}' github.com/dinhwe2612/umbral/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH
 > ```
 > 
 > Then you can run your program normally:
@@ -49,7 +49,7 @@ go get github.com/dinhwe2612/umbral-pre-cgo
 > 
 > Or add to your `~/.bashrc` or `~/.zshrc` for permanent setup:
 > ```bash
-> echo 'export LD_LIBRARY_PATH=$(go list -m -f "{{.Dir}}" github.com/dinhwe2612/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
+> echo 'export LD_LIBRARY_PATH=$(go list -m -f "{{.Dir}}" github.com/dinhwe2612/umbral/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
 > ```
 
 #### Option 2: Build from source
@@ -296,13 +296,13 @@ If you get `error while loading shared libraries: libumbral_pre.so: cannot open 
 
 **Quick fix (one line):**
 ```bash
-export LD_LIBRARY_PATH=$(go list -m -f '{{.Dir}}' github.com/dinhwe2612/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH && go run main.go
+export LD_LIBRARY_PATH=$(go list -m -f '{{.Dir}}' github.com/dinhwe2612/umbral/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH && go run main.go
 ```
 
 **Permanent setup (recommended):**
 Add this line to your `~/.bashrc` or `~/.zshrc`:
 ```bash
-export LD_LIBRARY_PATH=$(go list -m -f "{{.Dir}}" github.com/dinhwe2612/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$(go list -m -f "{{.Dir}}" github.com/dinhwe2612/umbral/umbral-pre-cgo)/lib:$LD_LIBRARY_PATH
 ```
 
 Then restart your terminal or run `source ~/.bashrc`.
