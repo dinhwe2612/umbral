@@ -19,6 +19,17 @@ Libraries in `lib/`:
 
 These are automatically updated on every push to `main` via GitHub Actions.
 
+## 📦 Cross-Platform Support
+
+Libraries for **Linux**, **macOS**, and **Windows** are included in this repo!
+
+Libraries in `lib/`:
+- `libumbral_pre.so` (Linux)
+- `libumbral_pre.dylib` (macOS)  
+- `umbral_pre.dll` (Windows)
+
+These are automatically updated on every push to `main` via GitHub Actions.
+
 ## 🚀 Quick Start
 
 ### Installation

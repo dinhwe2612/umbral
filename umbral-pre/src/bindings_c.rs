@@ -9,6 +9,7 @@ use crate::{
     decrypt_original, decrypt_reencrypted, encrypt, generate_kfrags, reencrypt, Capsule,
     CapsuleFrag, KeyFrag, PublicKey, SecretKey, Signer, VerifiedCapsuleFrag, VerifiedKeyFrag,
 };
+use crate::dem::DEM;
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::vec::{self, Vec};
@@ -65,6 +66,7 @@ pub type CapsuleFragPtr = *mut CapsuleFrag;
 pub type VerifiedCapsuleFragPtr = *mut VerifiedCapsuleFrag;
 pub type StreamEncryptorPtr = *mut StreamEncryptor;
 pub type StreamDecryptorPtr = *mut StreamDecryptor;
+pub type DEMPtr = *mut DEM;
 pub type ReadCallback =
     extern "C" fn(ctx: *mut core::ffi::c_void, buf: *mut u8, buf_len: usize) -> isize;
 pub type WriteCallback =
@@ -804,6 +806,56 @@ pub extern "C" fn umbral_cfrag_verify(
 }
 
 // ============================================================================
+// Capsule seed key extraction
+// ============================================================================
+
+#[no_mangle]
+pub extern "C" fn umbral_capsule_open_reencrypted(
+    receiving_sk: SecretKeyPtr,
+    delegating_pk: PublicKeyPtr,
+    capsule: CapsulePtr,
+    verified_cfrags: *const VerifiedCapsuleFragPtr,
+    verified_cfrags_len: usize,
+    key_seed_out: *mut ByteBuffer,
+    error_out: *mut UmbralError,
+) -> i32 {
+    if receiving_sk.is_null()
+        || delegating_pk.is_null()
+        || capsule.is_null()
+        || verified_cfrags.is_null()
+        || key_seed_out.is_null()
+    {
+        if !error_out.is_null() {
+            unsafe {
+                *error_out = UmbralError::from_string(-1, "Null pointer passed".into());
+            }
+        }
+        return -1;
+    }
+
+    unsafe {
+        let cfrag_slice = slice::from_raw_parts(verified_cfrags, verified_cfrags_len);
+        let cfrags: Vec<CapsuleFrag> = cfrag_slice.iter().map(|&ptr| (*ptr).clone().unverify()).collect();
+        
+        match (*capsule).open_reencrypted(&*receiving_sk, &*delegating_pk, &cfrags) {
+            Ok(key_seed) => {
+                *key_seed_out = ByteBuffer::from_boxed_slice(key_seed.as_secret().to_vec().into_boxed_slice());
+                if !error_out.is_null() {
+                    *error_out = UmbralError::success();
+                }
+                0
+            }
+            Err(e) => {
+                if !error_out.is_null() {
+                    *error_out = UmbralError::from_string(-6, alloc::format!("{:?}", e));
+                }
+                -6
+            }
+        }
+    }
+}
+
+// ============================================================================
 // Decrypt re-encrypted
 // ============================================================================
 
@@ -1170,6 +1222,77 @@ pub extern "C" fn umbral_stream_decryptor_process(
                     *error_out = UmbralError::from_string(-9, alloc::format!("{:?}", e));
                 }
                 -9
+            }
+        }
+    }
+}
+
+// ============================================================================
+// DEM (Data Encryption Module) for symmetric encryption
+// ============================================================================
+
+#[no_mangle]
+pub extern "C" fn umbral_dem_new(key_seed: *const u8, key_seed_len: usize) -> DEMPtr {
+    if key_seed.is_null() || key_seed_len == 0 {
+        return ptr::null_mut();
+    }
+    
+    unsafe {
+        let seed_slice = slice::from_raw_parts(key_seed, key_seed_len);
+        let dem = DEM::new(seed_slice);
+        Box::into_raw(Box::new(dem))
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn umbral_dem_free(dem: DEMPtr) {
+    if !dem.is_null() {
+        unsafe {
+            let _ = Box::from_raw(dem);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn umbral_dem_decrypt(
+    dem: DEMPtr,
+    ciphertext: *const u8,
+    ciphertext_len: usize,
+    authenticated_data: *const u8,
+    authenticated_data_len: usize,
+    plaintext_out: *mut ByteBuffer,
+    error_out: *mut UmbralError,
+) -> i32 {
+    if dem.is_null() || ciphertext.is_null() || plaintext_out.is_null() {
+        if !error_out.is_null() {
+            unsafe {
+                *error_out = UmbralError::from_string(-1, "Null pointer passed".into());
+            }
+        }
+        return -1;
+    }
+
+    unsafe {
+        let ciphertext_slice = slice::from_raw_parts(ciphertext, ciphertext_len);
+        let aad_slice = if authenticated_data.is_null() {
+            &[]
+        } else {
+            slice::from_raw_parts(authenticated_data, authenticated_data_len)
+        };
+
+        match (*dem).decrypt(ciphertext_slice, aad_slice) {
+            Ok(plaintext) => {
+                *plaintext_out = ByteBuffer::from_boxed_slice(plaintext);
+                if !error_out.is_null() {
+                    *error_out = UmbralError::success();
+                }
+                0
+            }
+            Err(e) => {
+                if !error_out.is_null() {
+                    *error_out = UmbralError::from_string(-7, alloc::format!("{:?}", e));
+                }
+                -7
             }
         }
     }

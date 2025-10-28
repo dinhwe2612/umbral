@@ -30,6 +30,7 @@ typedef void* CapsuleFragPtr;
 typedef void* VerifiedCapsuleFragPtr;
 typedef void* StreamEncryptorPtr;
 typedef void* StreamDecryptorPtr;
+typedef void* DEMPtr;
 
 typedef intptr_t (*ReadCallback)(void* ctx, uint8_t* buf, size_t buf_len);
 typedef int32_t (*WriteCallback)(void* ctx, const uint8_t* data, size_t data_len);
@@ -226,6 +227,30 @@ int32_t umbral_stream_decryptor_process(
     ReadCallback read_callback,
     WriteCallback write_callback,
     void* ctx,
+    UmbralError* error_out
+);
+
+// Capsule seed key extraction
+int32_t umbral_capsule_open_reencrypted(
+    SecretKeyPtr receiving_sk,
+    PublicKeyPtr delegating_pk,
+    CapsulePtr capsule,
+    const VerifiedCapsuleFragPtr* verified_cfrags,
+    size_t verified_cfrags_len,
+    ByteBuffer* key_seed_out,
+    UmbralError* error_out
+);
+
+// DEM (symmetric encryption) functions
+DEMPtr umbral_dem_new(const uint8_t* key_seed, size_t key_seed_len);
+void umbral_dem_free(DEMPtr dem);
+int32_t umbral_dem_decrypt(
+    DEMPtr dem,
+    const uint8_t* ciphertext,
+    size_t ciphertext_len,
+    const uint8_t* authenticated_data,
+    size_t authenticated_data_len,
+    ByteBuffer* plaintext_out,
     UmbralError* error_out
 );
 
@@ -1082,4 +1107,123 @@ func capsuleFragFromBytes(cfragBytes []byte) (*VerifiedCapsuleFrag, error) {
 
 	vcfrag := &VerifiedCapsuleFrag{ptr: vcfragOut}
 	return vcfrag, nil
+}
+
+// ============================================================================
+// Seed key extraction helper
+// ============================================================================
+
+func getSeedKeyFromCapsule(
+	receivingSK *SecretKey,
+	delegatingPK *PublicKey,
+	capsule *Capsule,
+	vcfrags []*VerifiedCapsuleFrag,
+) ([]byte, error) {
+	var keySeedOut C.ByteBuffer
+	var errorOut C.UmbralError
+
+	cfragPtrs := make([]C.VerifiedCapsuleFragPtr, len(vcfrags))
+	for i, vcf := range vcfrags {
+		cfragPtrs[i] = vcf.ptr
+	}
+
+	var cfragArrayPtr *C.VerifiedCapsuleFragPtr
+	if len(cfragPtrs) > 0 {
+		cfragArrayPtr = &cfragPtrs[0]
+	}
+
+	result := C.umbral_capsule_open_reencrypted(
+		receivingSK.ptr,
+		delegatingPK.ptr,
+		capsule.ptr,
+		cfragArrayPtr,
+		C.size_t(len(vcfrags)),
+		&keySeedOut,
+		&errorOut,
+	)
+
+	if result != 0 {
+		defer C.umbral_error_free(errorOut)
+		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
+		return nil, &Error{Code: int(errorOut.code), Message: msg}
+	}
+
+	keySeed := C.GoBytes(unsafe.Pointer(keySeedOut.data), C.int(keySeedOut.len))
+	C.umbral_byte_buffer_free(keySeedOut)
+
+	return keySeed, nil
+}
+
+// ============================================================================
+// Symmetric Decryptor
+// ============================================================================
+
+// SymmetricDecryptor wraps the C DEM decryptor
+type SymmetricDecryptor struct {
+	ptr C.DEMPtr
+}
+
+// NewSymmetricDecryptor creates a new symmetric decryptor from a seed key
+func NewSymmetricDecryptor(seedKeyBytes []byte) (*SymmetricDecryptor, error) {
+	if len(seedKeyBytes) == 0 {
+		return nil, fmt.Errorf("seed key cannot be empty")
+	}
+
+	seedPtr := (*C.uint8_t)(C.CBytes(seedKeyBytes))
+	defer C.free(unsafe.Pointer(seedPtr))
+
+	ptr := C.umbral_dem_new(seedPtr, C.size_t(len(seedKeyBytes)))
+	if ptr == nil {
+		return nil, fmt.Errorf("failed to create DEM decryptor")
+	}
+
+	dec := &SymmetricDecryptor{ptr: ptr}
+	runtime.SetFinalizer(dec, (*SymmetricDecryptor).free)
+	return dec, nil
+}
+
+func (sd *SymmetricDecryptor) free() {
+	if sd.ptr != nil {
+		C.umbral_dem_free(sd.ptr)
+		sd.ptr = nil
+	}
+}
+
+// Free explicitly releases resources associated with the symmetric decryptor
+func (sd *SymmetricDecryptor) Free() {
+	sd.free()
+}
+
+// Decrypt decrypts ciphertext using the symmetric key
+// authenticatedData is typically the capsule bytes for non-stream decryption
+func (sd *SymmetricDecryptor) DecryptWithCapsule(ciphertext []byte, capsuleBytes []byte) ([]byte, error) {
+	var plaintextOut C.ByteBuffer
+	var errorOut C.UmbralError
+
+	ciphertextPtr := (*C.uint8_t)(C.CBytes(ciphertext))
+	defer C.free(unsafe.Pointer(ciphertextPtr))
+
+	capsulePtr := (*C.uint8_t)(C.CBytes(capsuleBytes))
+	defer C.free(unsafe.Pointer(capsulePtr))
+
+	result := C.umbral_dem_decrypt(
+		sd.ptr,
+		ciphertextPtr,
+		C.size_t(len(ciphertext)),
+		capsulePtr,
+		C.size_t(len(capsuleBytes)),
+		&plaintextOut,
+		&errorOut,
+	)
+
+	if result != 0 {
+		defer C.umbral_error_free(errorOut)
+		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
+		return nil, &Error{Code: int(errorOut.code), Message: msg}
+	}
+
+	plaintext := C.GoBytes(unsafe.Pointer(plaintextOut.data), C.int(plaintextOut.len))
+	C.umbral_byte_buffer_free(plaintextOut)
+
+	return plaintext, nil
 }

@@ -290,3 +290,74 @@ func TestE2EWorkflowWithValidation(t *testing.T) {
 		t.Log("E2E workflow with validation completed successfully!", string(plaintext))
 	}
 }
+
+// Test2E2WorkflowWithSeedKey tests the complete Umbral workflow using seed key
+func Test2E2WorkflowWithSeedKey(t *testing.T) {
+	// Step 1: Alice generates Ethereum key pair
+	alicePrivateKeyBytes, alicePublicKeyBytes, err := GenerateEthereumKeyPair()
+	if err != nil {
+		t.Fatalf("Failed to generate Alice key pair: %v", err)
+	}
+
+	bobPrivateKeyBytes, bobPublicKeyBytes, err := GenerateEthereumKeyPair()
+	if err != nil {
+		t.Fatalf("Failed to generate Bob key pair: %v", err)
+	}
+
+	// Step 2: Alice encrypts data
+	t.Log("Step 2: Alice encrypting data...")
+	plaintext := []byte("Umbral Proxy Re-encryption with seed key!")
+	capsuleBytes, ciphertext, err := EncrypData(alicePublicKeyBytes, plaintext)
+	if err != nil {
+		t.Fatalf("Failed to encrypt data: %v", err)
+	}
+
+	// Step 3: Alice creates rekey for Bob
+	t.Log("Step 3: Alice creating rekey for Bob...")
+	kfragBytes, err := CreateRekey(alicePrivateKeyBytes, bobPublicKeyBytes)
+	if err != nil {
+		t.Fatalf("Failed to create rekey: %v", err)
+	}
+
+	// Step 4: Bob re-encrypts data
+	// Step 4: Re-encrypt
+	t.Log("Step 4: Re-encrypting...")
+	cfragBytes, err := ReencryptCapsule(
+		capsuleBytes,
+		kfragBytes,
+		alicePublicKeyBytes,
+		alicePublicKeyBytes,
+		bobPublicKeyBytes,
+	)
+	if err != nil {
+		t.Fatalf("Failed to re-encrypt: %v", err)
+	}
+
+	// Step 5: Bob decrypts data
+	// get the seed key by Bob's private key, Alice's public key, capsule, and cfragBytes
+	seedKeyBytes, err := GetSeedKey(bobPrivateKeyBytes, alicePublicKeyBytes, capsuleBytes, cfragBytes)
+	if err != nil {
+		t.Fatalf("Failed to get seed key: %v", err)
+	}
+
+	// create symmetric decriptor with seed key
+	decryptor, err := CreateSymmetricDecryptor(seedKeyBytes)
+	if err != nil {
+		t.Fatalf("Failed to create symmetric decryptor: %v", err)
+	}
+	defer decryptor.Free()
+
+	// decrypt data
+	decrypted, err := decryptor.DecryptWithCapsule(ciphertext, capsuleBytes)
+	if err != nil {
+		t.Fatalf("Failed to decrypt: %v", err)
+	}
+
+	// Verify
+	if string(decrypted) != string(plaintext) {
+		t.Errorf("Decryption failed: expected %s, got %s", string(plaintext), string(decrypted))
+	} else {
+		t.Log("E2E workflow with seed key completed successfully!", string(decrypted))
+		t.Log("E2E workflow with seed key completed successfully!", string(plaintext))
+	}
+}

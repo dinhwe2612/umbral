@@ -333,3 +333,57 @@ func CreateStreamDecryptorReencrypted(receivingPrivateKeyBytes []byte, delegatin
 
 	return decryptor, nil
 }
+
+// GetSeedKey extracts the seed key from a re-encrypted capsule
+func GetSeedKey(
+	receivingPrivateKeyBytes []byte,
+	delegatingPublicKeyBytes []byte,
+	capsuleBytes []byte,
+	cfragBytes []byte,
+) ([]byte, error) {
+	// Convert receiving private key to Umbral secret key
+	receivingSK, err := GenerateSecretKeyFromBytes(receivingPrivateKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	defer receivingSK.Free()
+
+	// Convert delegating public key to Umbral public key
+	delegatingPK, err := GeneratePublicKeyFromBytes(delegatingPublicKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	defer delegatingPK.Free()
+
+	// Convert capsule bytes back to capsule
+	capsule, err := capsuleFromBytes(capsuleBytes)
+	if err != nil {
+		return nil, err
+	}
+	defer capsule.Free()
+
+	// Convert capsule fragment bytes back to verified capsule fragment
+	vcfrag, err := capsuleFragFromBytes(cfragBytes)
+	if err != nil {
+		return nil, err
+	}
+	defer vcfrag.Free()
+
+	// Extract seed key
+	seedKey, err := getSeedKeyFromCapsule(
+		receivingSK,
+		delegatingPK,
+		capsule,
+		[]*VerifiedCapsuleFrag{vcfrag},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return seedKey, nil
+}
+
+// CreateSymmetricDecryptor creates a symmetric decryptor from a seed key
+func CreateSymmetricDecryptor(seedKeyBytes []byte) (*SymmetricDecryptor, error) {
+	return NewSymmetricDecryptor(seedKeyBytes)
+}
