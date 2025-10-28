@@ -4,7 +4,7 @@ go 1.24.0
 
 toolchain go1.24.6
 
-// Version: v0.12.1-go
+// Version: v0.12.2-go
 
 require github.com/ethereum/go-ethereum v1.16.5
 
