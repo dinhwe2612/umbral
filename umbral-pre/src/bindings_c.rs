@@ -5,11 +5,11 @@
 // Allow unsafe code for FFI
 #![allow(unsafe_code)]
 
+use crate::dem::DEM;
 use crate::{
     decrypt_original, decrypt_reencrypted, encrypt, generate_kfrags, reencrypt, Capsule,
     CapsuleFrag, KeyFrag, PublicKey, SecretKey, Signer, VerifiedCapsuleFrag, VerifiedKeyFrag,
 };
-use crate::dem::DEM;
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::vec::{self, Vec};
@@ -835,11 +835,15 @@ pub extern "C" fn umbral_capsule_open_reencrypted(
 
     unsafe {
         let cfrag_slice = slice::from_raw_parts(verified_cfrags, verified_cfrags_len);
-        let cfrags: Vec<CapsuleFrag> = cfrag_slice.iter().map(|&ptr| (*ptr).clone().unverify()).collect();
-        
+        let cfrags: Vec<CapsuleFrag> = cfrag_slice
+            .iter()
+            .map(|&ptr| (*ptr).clone().unverify())
+            .collect();
+
         match (*capsule).open_reencrypted(&*receiving_sk, &*delegating_pk, &cfrags) {
             Ok(key_seed) => {
-                *key_seed_out = ByteBuffer::from_boxed_slice(key_seed.as_secret().to_vec().into_boxed_slice());
+                *key_seed_out =
+                    ByteBuffer::from_boxed_slice(key_seed.as_secret().to_vec().into_boxed_slice());
                 if !error_out.is_null() {
                     *error_out = UmbralError::success();
                 }
@@ -925,7 +929,7 @@ pub extern "C" fn umbral_dem_new(key_seed: *const u8, key_seed_len: usize) -> DE
     if key_seed.is_null() || key_seed_len == 0 {
         return ptr::null_mut();
     }
-    
+
     unsafe {
         let seed_slice = slice::from_raw_parts(key_seed, key_seed_len);
         let dem = DEM::new(seed_slice);

@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	fmt.Println("🚀 Umbral Pre-Go v0.12.3-go Basic Usage Example")
+	fmt.Println("🚀 Umbral Pre-Go v0.0.1 Basic Usage Example")
 	fmt.Println("=================================================")
 
 	// Step 1: Generate Ethereum key pairs
