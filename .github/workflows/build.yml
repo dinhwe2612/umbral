@@ -57,6 +57,8 @@ jobs:
           mkdir -p umbral-pre-cgo/lib
           rm -f umbral-pre-cgo/lib/libumbral_pre.*
           find . -name "libumbral_pre.a" -exec cp {} umbral-pre-cgo/lib/libumbral_pre-linux-amd64.a \;
+          # Create symbolic link for CGO
+          cd umbral-pre-cgo/lib && ln -sf libumbral_pre-linux-amd64.a libumbral_pre.a
 
       - name: Copy static library for Go (macOS)
         if: matrix.os == 'macos-latest'
@@ -67,6 +69,8 @@ jobs:
           if [ -n "$LIB_PATH" ]; then
             cp "$LIB_PATH" umbral-pre-cgo/lib/libumbral_pre-darwin-amd64.a
             echo "Copied static library: $LIB_PATH"
+            # Create symbolic link for CGO
+            cd umbral-pre-cgo/lib && ln -sf libumbral_pre-darwin-amd64.a libumbral_pre.a
           fi
 
       - name: Copy static library for Go (Windows)
@@ -78,6 +82,8 @@ jobs:
           if ($lib) {
               Copy-Item $lib.FullName -Destination "umbral-pre-cgo/lib/libumbral_pre-windows-amd64.a"
               Write-Host "Copied static library: $($lib.FullName) to umbral-pre-cgo/lib/libumbral_pre-windows-amd64.a"
+              # Create symbolic link for CGO
+              New-Item -ItemType SymbolicLink -Path "umbral-pre-cgo/lib/libumbral_pre.a" -Target "libumbral_pre-windows-amd64.a" -Force
               Write-Host "Files in umbral-pre-cgo/lib:"
               dir umbral-pre-cgo\lib
           } else {
@@ -140,24 +146,34 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+      
       - name: Download all library artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: libumbral_pre-*
           merge-multiple: true
           path: libraries/
-
+      
       - name: Copy static libraries to lib folder
         run: |
           mkdir -p umbral-pre-cgo/lib
           # Copy all platform-specific static libraries
           cp libraries/*.a umbral-pre-cgo/lib/ 2>/dev/null || true
+          # Create symbolic links for CGO
+          cd umbral-pre-cgo/lib
+          if [ -f "libumbral_pre-linux-amd64.a" ]; then
+            ln -sf libumbral_pre-linux-amd64.a libumbral_pre.a
+          elif [ -f "libumbral_pre-darwin-amd64.a" ]; then
+            ln -sf libumbral_pre-darwin-amd64.a libumbral_pre.a
+          elif [ -f "libumbral_pre-windows-amd64.a" ]; then
+            ln -sf libumbral_pre-windows-amd64.a libumbral_pre.a
+          fi
+          cd ../..
           echo "Files copied to umbral-pre-cgo/lib/:"
           ls -la umbral-pre-cgo/lib/
           echo "Current git status for lib folder:"
           git status umbral-pre-cgo/lib/
-
+      
       - name: Commit and push libraries
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
