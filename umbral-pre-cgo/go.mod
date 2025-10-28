@@ -1,10 +1,10 @@
-module github.com/dinhwe2612/umbral/umbral-pre-cgo
+module github.com/dinhwe2612/umbral-pre-cgo
 
 go 1.24.0
 
 toolchain go1.24.6
 
-// Version: v0.12.0-go
+// Version: v0.12.1-go
 
 require github.com/ethereum/go-ethereum v1.16.5
 

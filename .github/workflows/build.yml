@@ -80,10 +80,10 @@ jobs:
           Remove-Item "umbral-pre-cgo/lib/*umbral*" -ErrorAction SilentlyContinue
           $lib = Get-ChildItem -Path . -Recurse -Filter "libumbral_pre.a" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($lib) {
-              # Copy with platform-specific name
+              # Copy with platform-specific name for artifact storage
               Copy-Item $lib.FullName -Destination "umbral-pre-cgo/lib/libumbral_pre-windows-amd64.a"
               Write-Host "Copied static library: $($lib.FullName) to umbral-pre-cgo/lib/libumbral_pre-windows-amd64.a"
-              # Copy with standard name for CGO
+              # Copy with standard name for CGO linking
               Copy-Item $lib.FullName -Destination "umbral-pre-cgo/lib/libumbral_pre.a"
               Write-Host "Copied static library: $($lib.FullName) to umbral-pre-cgo/lib/libumbral_pre.a"
               Write-Host "Files in umbral-pre-cgo/lib:"

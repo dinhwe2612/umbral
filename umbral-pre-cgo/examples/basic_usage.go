@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 
-	umbralprecgo "github.com/dinhwe2612/umbral/umbral-pre-cgo"
+	umbralprecgo "github.com/dinhwe2612/umbral-pre-cgo"
 )
 
 func main() {
-	fmt.Println("🚀 Umbral Pre-Go v0.12.0-go Basic Usage Example")
+	fmt.Println("🚀 Umbral Pre-Go v0.12.1-go Basic Usage Example")
 	fmt.Println("=================================================")
 
 	// Step 1: Generate Ethereum key pairs
