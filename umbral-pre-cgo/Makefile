@@ -1,7 +1,7 @@
 # Umbral Pre-Go Makefile
-# Version: v0.11.0-go
+# Version: v0.12.0-go
 
-VERSION := v0.11.0-go
+VERSION := v0.12.0-go
 
 .PHONY: all build test clean install deps examples version
 
@@ -21,9 +21,12 @@ deps:
 
 # Build Rust library
 build-rust:
-	@echo "🦀 Building Rust library..."
+	@echo "🦀 Building Rust static library..."
 	@cd ../umbral-pre && cargo build --release --features bindings-c
-	@echo "✅ Rust library built"
+	@echo "📋 Copying static library to lib directory..."
+	@mkdir -p lib
+	@cp ../target/release/libumbral_pre.a lib/
+	@echo "✅ Rust static library built and copied to lib/"
 
 # Build Go library
 build-go:

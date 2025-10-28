@@ -15,167 +15,158 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         go-version: ['1.24']
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: Set up Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        components: rustfmt, clippy
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
 
-    - name: Build Rust library
-      run: |
-        cd umbral-pre
-        cargo build --release --features bindings-c
-    
-    - name: Debug - List target directory (Unix)
-      if: matrix.os != 'windows-latest'
-      run: |
-        echo "Current directory: $(pwd)"
-        echo "Looking for built libraries:"
-        find . -name "*.dylib" -o -name "*.so" -o -name "*.dll" 2>/dev/null
-    
-    - name: Debug - List target directory (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        echo "Current directory: $PWD"
-        echo "Looking for built libraries:"
-        Get-ChildItem -Path . -Recurse -Include *.dll -ErrorAction SilentlyContinue | Select-Object FullName
-    
-    - name: Copy library for Go (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        mkdir -p umbral-pre-cgo/lib
-        rm -f umbral-pre-cgo/lib/libumbral_pre.*
-        find . -name "libumbral_pre.so" -exec cp {} umbral-pre-cgo/lib/ \;
+      - name: Build Rust static library
+        run: |
+          cd umbral-pre
+          cargo build --release --features bindings-c
 
-    - name: Copy library for Go (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        mkdir -p umbral-pre-cgo/lib
-        rm -f umbral-pre-cgo/lib/libumbral_pre.*
-        LIB_PATH=$(find . -name "libumbral_pre.dylib" -print -quit)
-        if [ -n "$LIB_PATH" ]; then
-          cp "$LIB_PATH" umbral-pre-cgo/lib/
-          cd umbral-pre-cgo/lib
-          # Fix library to use @rpath so it works when downloaded by users
-          install_name_tool -id "@rpath/libumbral_pre.dylib" libumbral_pre.dylib
-          cd ../..
-        fi
+      - name: Debug - List target directory (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Looking for built static libraries:"
+          find . -name "*.a" 2>/dev/null
 
-    - name: Copy library for Go (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        if (-not (Test-Path "umbral-pre-cgo/lib")) { New-Item -ItemType Directory -Path "umbral-pre-cgo/lib" }
-        Remove-Item "umbral-pre-cgo/lib/*umbral*" -ErrorAction SilentlyContinue
-        $lib = Get-ChildItem -Path . -Recurse -Filter "umbral_pre.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($lib) {
-            Copy-Item $lib.FullName -Destination "umbral-pre-cgo/lib/"
-            Write-Host "Copied: $($lib.FullName) to umbral-pre-cgo/lib/"
-            Write-Host "Files in umbral-pre-cgo/lib:"
-            dir umbral-pre-cgo\lib
-        } else {
-            Write-Host "Warning: Could not find umbral_pre.dll"
-            Write-Host "Searching for DLL files:"
-            Get-ChildItem -Path . -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue | Select-Object FullName
-        }
+      # Windows build disabled
 
-    - name: Upload library artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: libumbral_pre-${{ matrix.os }}
-        path: umbral-pre-cgo/lib/*
-        if-no-files-found: warn
-        retention-days: 90
+      - name: Copy static library for Go (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # ĐÃ SỬA: Đường dẫn nguồn (SOURCE_PATH) không bao gồm thư mục umbral-pre/
+          SOURCE_PATH="target/release/libumbral_pre.a"
+          DEST_PATH="umbral-pre-cgo/lib/libumbral_pre-linux-amd64.a"
+          
+          mkdir -p umbral-pre-cgo/lib
+          # Xóa sạch thư mục lib để loại bỏ symlink và file cũ
+          rm -f umbral-pre-cgo/lib/libumbral_pre.*
+          
+          # Kiểm tra file nguồn có tồn tại hay không
+          if [ ! -f "$SOURCE_PATH" ]; then
+            echo "::error file=build.yml,line=$LINENO::KHÔNG TÌM THẤY file nguồn Rust tại $SOURCE_PATH"
+            exit 1
+          fi
+          
+          # Thực hiện COPY bằng đường dẫn cố định
+          cp "$SOURCE_PATH" "$DEST_PATH"
+          echo "Đã sao chép thành công file từ $SOURCE_PATH sang $DEST_PATH"
+          
+          # Kiểm tra kết quả COPY
+          ls -la umbral-pre-cgo/lib/
 
-    - name: Verify libraries copied (Unix)
-      if: matrix.os != 'windows-latest'
-      run: |
-        echo "Verifying libraries were copied:"
-        ls -la umbral-pre-cgo/lib/
+      - name: Copy static library for Go (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          # ĐÃ SỬA: Đường dẫn nguồn (SOURCE_PATH) không bao gồm thư mục umbral-pre/
+          SOURCE_PATH="target/release/libumbral_pre.a"
+          DEST_PATH="umbral-pre-cgo/lib/libumbral_pre-darwin-amd64.a"
+          
+          mkdir -p umbral-pre-cgo/lib
+          # Xóa sạch thư mục lib để loại bỏ symlink và file cũ
+          rm -f umbral-pre-cgo/lib/libumbral_pre.*
+          
+          # Kiểm tra file nguồn có tồn tại hay không
+          if [ ! -f "$SOURCE_PATH" ]; then
+            echo "::error file=build.yml,line=$LINENO::KHÔNG TÌM THẤY file nguồn Rust tại $SOURCE_PATH"
+            exit 1
+          fi
+          
+          # Thực hiện COPY bằng đường dẫn cố định
+          cp "$SOURCE_PATH" "$DEST_PATH"
+          echo "Đã sao chép thành công file từ $SOURCE_PATH sang $DEST_PATH"
+          
+          # Kiểm tra kết quả COPY
+          ls -la umbral-pre-cgo/lib/
 
-    - name: Verify libraries copied (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        echo "Verifying libraries were copied:"
-        dir umbral-pre-cgo\lib
+      # Windows copy step disabled
 
-    - name: Test Go library (Unix)
-      if: matrix.os != 'windows-latest'
-      run: |
-        cd umbral-pre-cgo
-        go mod tidy
-        export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
-        go test -v ./...
+      - name: Upload library artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libumbral_pre-${{ matrix.os }}
+          path: umbral-pre-cgo/lib/*
+          if-no-files-found: warn
+          retention-days: 90
 
-    - name: Test Go library (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        cd umbral-pre-cgo
-        # Copy DLL to current directory for Windows to find it at runtime
-        copy lib\umbral_pre.dll . 2>nul
-        go mod tidy
-        go test -v ./...
+      - name: Verify libraries copied (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          echo "Verifying libraries were copied:"
+          ls -la umbral-pre-cgo/lib/
 
-    - name: Run examples (Unix)
-      if: matrix.os != 'windows-latest'
-      run: |
-        cd umbral-pre-cgo
-        export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
-        go run examples/basic_usage.go
+      # Windows verify step disabled
 
-    - name: Run examples (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        cd umbral-pre-cgo
-        # Ensure DLL is in current directory
-        copy lib\umbral_pre.dll . 2>nul
-        go run examples/basic_usage.go
+      - name: Test Go library (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd umbral-pre-cgo
+          go mod tidy
+          go test -v ./...
+
+      # Windows test step disabled
+
+      - name: Run examples (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd umbral-pre-cgo
+          go run examples/basic_usage.go
+
+      # Windows example step disabled
 
   commit-libs:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
-    - name: Download all library artifacts
-      uses: actions/download-artifact@v4
-      with:
-        pattern: libumbral_pre-*
-        merge-multiple: true
-        path: libraries/
-    
-    - name: Copy libraries to lib folder
-      run: |
-        mkdir -p umbral-pre-cgo/lib
-        # merge-multiple extracts directly into libraries/, not subdirectories
-        cp libraries/*.so libraries/*.dylib libraries/*.dll umbral-pre-cgo/lib/ 2>/dev/null || true
-        echo "Files copied to umbral-pre-cgo/lib/:"
-        ls -la umbral-pre-cgo/lib/
-        echo "Current git status for lib folder:"
-        git status umbral-pre-cgo/lib/
-    
-    - name: Commit and push libraries
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git status umbral-pre-cgo/lib/
-        git add -f umbral-pre-cgo/lib/
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Update cross-platform libraries [skip ci]"
-          git push
-        fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Download all library artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: libumbral_pre-*
+          merge-multiple: true
+          path: libraries/
+      
+      - name: Copy static libraries to lib folder
+        run: |
+          mkdir -p umbral-pre-cgo/lib
+          # Loại bỏ tất cả file cũ (kể cả symlink) trước khi copy
+          rm -f umbral-pre-cgo/lib/libumbral_pre.*
+          
+          # COPY các file .a có tên nền tảng từ Artifacts (libraries/) sang thư mục đích
+          cp libraries/*.a umbral-pre-cgo/lib/ 2>/dev/null || true
+          
+          echo "Files copied to umbral-pre-cgo/lib/:"
+          ls -la umbral-pre-cgo/lib/
+          # Lệnh này sẽ chỉ hiển thị các file nhị phân đã đổi tên (vd: libumbral_pre-linux-amd64.a)
+      
+      - name: Commit and push libraries
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git status umbral-pre-cgo/lib/
+          git add -f umbral-pre-cgo/lib/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update cross-platform static libraries [skip ci]"
+            git push
+          fi
