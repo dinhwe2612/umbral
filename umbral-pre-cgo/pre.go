@@ -242,130 +242,38 @@ func GenerateEthereumKeyPair() ([]byte, []byte, error) {
 	return privateKeyBytes, publicKeyBytes, nil
 }
 
-// CreateStreamEncryptor creates a stream encryptor for chunk-by-chunk encryption
-func CreateStreamEncryptor(publicKeyBytes []byte) (*StreamEncryptorGo, []byte, error) {
-	// Convert Ethereum public key bytes to Umbral public key
-	umbralPK, err := GeneratePublicKeyFromBytes(publicKeyBytes)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer umbralPK.Free()
-
-	// Create stream encryptor
-	encryptor, err := NewStreamEncryptorGo(umbralPK)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Get capsule for later use
-	capsule := encryptor.Capsule()
-	defer capsule.Free()
-
-	capsuleBytes, err := capsuleToBytes(capsule)
-	if err != nil {
-		encryptor.Free()
-		return nil, nil, err
-	}
-
-	return encryptor, capsuleBytes, nil
-}
-
-// CreateStreamDecryptorOriginal creates a stream decryptor for the original owner
-func CreateStreamDecryptorOriginal(privateKeyBytes []byte, capsuleBytes []byte) (*StreamDecryptorGo, error) {
-	// Convert Ethereum private key bytes to Umbral secret key
-	umbralSK, err := GenerateSecretKeyFromBytes(privateKeyBytes)
-	if err != nil {
-		return nil, err
-	}
-	defer umbralSK.Free()
-
-	// Convert capsule bytes back to capsule
-	capsule, err := capsuleFromBytes(capsuleBytes)
-	if err != nil {
-		return nil, err
-	}
-	defer capsule.Free()
-
-	// Create stream decryptor
-	decryptor, err := NewStreamDecryptorOriginal(umbralSK, capsule)
-	if err != nil {
-		return nil, err
-	}
-
-	return decryptor, nil
-}
-
-// CreateStreamDecryptorReencrypted creates a stream decryptor for re-encrypted data
-func CreateStreamDecryptorReencrypted(receivingPrivateKeyBytes []byte, delegatingPublicKeyBytes []byte, capsuleBytes []byte, cfragBytes []byte) (*StreamDecryptorGo, error) {
-	// Convert Ethereum private key bytes to Umbral secret key
-	umbralSK, err := GenerateSecretKeyFromBytes(receivingPrivateKeyBytes)
-	if err != nil {
-		return nil, err
-	}
-	defer umbralSK.Free()
-
-	// Convert Ethereum public key bytes to Umbral public key
-	umbralPK, err := GeneratePublicKeyFromBytes(delegatingPublicKeyBytes)
-	if err != nil {
-		return nil, err
-	}
-	defer umbralPK.Free()
-
-	// Convert capsule bytes back to capsule
-	capsule, err := capsuleFromBytes(capsuleBytes)
-	if err != nil {
-		return nil, err
-	}
-	defer capsule.Free()
-
-	// Convert capsule fragment bytes back to capsule fragment
-	vcfrag, err := capsuleFragFromBytes(cfragBytes)
-	if err != nil {
-		return nil, err
-	}
-	defer vcfrag.Free()
-
-	// Create stream decryptor
-	decryptor, err := NewStreamDecryptorReencrypted(umbralSK, umbralPK, capsule, []*VerifiedCapsuleFrag{vcfrag})
-	if err != nil {
-		return nil, err
-	}
-
-	return decryptor, nil
-}
-
 // GetSeedKey extracts the seed key from a re-encrypted capsule
 func GetSeedKey(
 	receivingPrivateKeyBytes []byte,
 	delegatingPublicKeyBytes []byte,
 	capsuleBytes []byte,
 	cfragBytes []byte,
-) ([]byte, error) {
+) ([]byte, []byte, error) {
 	// Convert receiving private key to Umbral secret key
 	receivingSK, err := GenerateSecretKeyFromBytes(receivingPrivateKeyBytes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer receivingSK.Free()
 
 	// Convert delegating public key to Umbral public key
 	delegatingPK, err := GeneratePublicKeyFromBytes(delegatingPublicKeyBytes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer delegatingPK.Free()
 
 	// Convert capsule bytes back to capsule
 	capsule, err := capsuleFromBytes(capsuleBytes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer capsule.Free()
 
 	// Convert capsule fragment bytes back to verified capsule fragment
 	vcfrag, err := capsuleFragFromBytes(cfragBytes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer vcfrag.Free()
 
@@ -377,10 +285,16 @@ func GetSeedKey(
 		[]*VerifiedCapsuleFrag{vcfrag},
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return seedKey, nil
+	// Get simple capsule bytes for authenticated data
+	capsuleBytesSimple, err := capsuleToBytesSimple(capsule)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return seedKey, capsuleBytesSimple, nil
 }
 
 // CreateSymmetricDecryptor creates a symmetric decryptor from a seed key
