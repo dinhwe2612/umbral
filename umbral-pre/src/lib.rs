@@ -15,10 +15,7 @@
 //!    that matches the serialization in the bindings.
 //!    MessagePack, `serde`-based.
 //! * `serde` - implements `serde`-based serialization and deserialization.
-//! * `bindings-python` - adds a `bindings_python` submodule allowing dependent crates
-//!        to use and re-export some of the Python-wrapped Umbral types.
-//! * `bindings-wasm` - adds a `bindings_wasm` submodule allowing dependent crates
-//!        to use and re-export some of the WASM-wrapped Umbral types.
+//! * `bindings-c` - adds C bindings for use with other languages.
 //!
 //! # Usage
 //!
@@ -123,10 +120,6 @@ pub mod bench; // Re-export some internals for benchmarks.
 
 #[cfg(feature = "bindings-c")]
 pub mod bindings_c;
-#[cfg(feature = "bindings-python")]
-pub mod bindings_python;
-#[cfg(feature = "bindings-wasm")]
-pub mod bindings_wasm;
 
 mod capsule;
 mod capsule_frag;

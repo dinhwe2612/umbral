@@ -21,11 +21,6 @@ hex = { version = "0.4", default-features = false, features = ["alloc"] }
 serde = { version = "1", default-features = false, features = ["derive"], optional = true }
 base64 = { version = "0.21", default-features = false, features = ["alloc"] }
 rmp-serde = { version = "1", optional = true }
-pyo3 = { version = "0.18", optional = true }
-js-sys = { version = "0.3.63", optional = true }
-wasm-bindgen = { version = "0.2.86", optional = true }
-derive_more = { version = "0.99", optional = true, default_features = false, features = ["as_ref", "from", "into"] }
-wasm-bindgen-derive = { version = "0.2.0", optional = true }
 
 # These packages are among the dependencies of the packages above.
 # Their versions should be updated when the main packages above are updated.
@@ -43,8 +38,6 @@ rmp-serde = "1"
 [features]
 default = ["default-rng"]
 bench-internals = ["default-rng"]
-bindings-python = ["pyo3", "std", "derive_more", "default-serialization"]
-bindings-wasm = ["js-sys", "default-serialization", "wasm-bindgen", "derive_more", "wasm-bindgen-derive", "getrandom/js"]
 bindings-c = ["default-rng", "std", "default-serialization"]
 default-rng = ["getrandom", "rand_core/getrandom"]
 default-serialization = ["serde", "rmp-serde"]
