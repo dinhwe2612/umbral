@@ -1,9 +1,10 @@
 package umbralprecgo
 
 /*
-#cgo windows LDFLAGS: -L./lib -lumbral_pre
-#cgo linux LDFLAGS: -L./lib -Wl,-rpath,./lib -lumbral_pre -ldl -lm
-#cgo darwin LDFLAGS: -L./lib -Wl,-rpath,./lib -lumbral_pre -framework Security -framework Foundation
+#cgo LDFLAGS: -L./lib -lumbral_pre -ldl -lm
+#cgo darwin LDFLAGS: -framework Security -framework Foundation
+#cgo windows LDFLAGS: -luser32 -lkernel32 -ladvapi32
+#cgo linux LDFLAGS: -ldl -lm
 #cgo CFLAGS: -I../umbral-pre/src
 #include <stdlib.h>
 #include <stdint.h>

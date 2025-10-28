@@ -46,10 +46,10 @@ dist/
 *.zip
 
 # Go module specific
-umbral-pre-cgo/lib/*
-!umbral-pre-cgo/lib/libumbral_pre.so
-!umbral-pre-cgo/lib/libumbral_pre.dylib
-!umbral-pre-cgo/lib/umbral_pre.dll
+umbral-pre-cgo/lib/*mod
+!umbral-pre-cgo/lib/libumbral_pre-linux-amd64.a
+!umbral-pre-cgo/lib/libumbral_pre-darwin-amd64.a
+!umbral-pre-cgo/lib/libumbral_pre-windows-amd64.a
 
 # Environment files
 .env
