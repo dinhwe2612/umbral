@@ -136,7 +136,7 @@ func main() {
     
     // Encrypt data
     plaintext := []byte("Hello, Umbral!")
-    capsuleBytes, ciphertext, err := umbralprecgo.EncrypData(delegatingPublicKey, plaintext)
+    capsuleBytes, ciphertext, err := umbralprecgo.EncryptData(delegatingPublicKey, plaintext)
     if err != nil {
         log.Fatal(err)
     }
@@ -197,7 +197,7 @@ privateKey, publicKey, err := umbralprecgo.GenerateEthereumKeyPair()
 
 ```go
 // Encrypt data with public key
-capsuleBytes, ciphertext, err := umbralprecgo.EncrypData(publicKey, plaintext)
+capsuleBytes, ciphertext, err := umbralprecgo.EncryptData(publicKey, plaintext)
 ```
 
 ### Rekey Creation
@@ -275,7 +275,7 @@ CMD ["./app"]
 
 ```
 1. GenerateEthereumKeyPair() → privateKey, publicKey
-2. EncrypData() → capsuleBytes, ciphertext
+2. EncryptData() → capsuleBytes, ciphertext
 3. CreateRekey() → kfragBytes
 4. ReencryptCapsule() → cfragBytes
 5. DecryptReencryptedData() → decrypted plaintext
