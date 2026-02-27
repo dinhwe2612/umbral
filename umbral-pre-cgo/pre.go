@@ -94,11 +94,11 @@ func CreateRekey(
 
 	// First unverify to get KeyFrag, then convert to bytes
 	kfrag := vkfrags[0].unverify()
-	kfragBytes, err := keyFragToBytes(kfrag)
-	kfrag.Free()
+	defer kfrag.Free()
 	for _, vkf := range vkfrags {
-		vkf.Free()
+		defer vkf.Free()
 	}
+	kfragBytes, err := keyFragToBytes(kfrag)
 	if err != nil {
 		return nil, err
 	}
