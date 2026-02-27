@@ -25,7 +25,7 @@ func TestE2EWorkflow(t *testing.T) {
 	t.Log("Step 2: Encrypting data...")
 	plaintext := []byte("Hello, Umbral Proxy Re-encryption!")
 
-	capsuleBytes, ciphertext, err := EncrypData(delegatingPublicKeyBytes, plaintext)
+	capsuleBytes, ciphertext, err := EncryptData(delegatingPublicKeyBytes, plaintext)
 	if err != nil {
 		t.Fatalf("Failed to encrypt data: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestE2EWorkflowWithValidation(t *testing.T) {
 	// Step 2: Encrypt data
 	t.Log("Step 2: Encrypting data...")
 	plaintext := []byte("Umbral Proxy Re-encryption with validation!")
-	capsuleBytes, ciphertext, err := EncrypData(delegatingPublicKeyBytes, plaintext)
+	capsuleBytes, ciphertext, err := EncryptData(delegatingPublicKeyBytes, plaintext)
 	if err != nil {
 		t.Fatalf("Failed to encrypt data: %v", err)
 	}
@@ -154,7 +154,7 @@ func Test2E2WorkflowWithSeedKey(t *testing.T) {
 	// Step 2: Alice encrypts data
 	t.Log("Step 2: Alice encrypting data...")
 	plaintext := []byte("Umbral Proxy Re-encryption with seed key!")
-	capsuleBytes, ciphertext, err := EncrypData(alicePublicKeyBytes, plaintext)
+	capsuleBytes, ciphertext, err := EncryptData(alicePublicKeyBytes, plaintext)
 	if err != nil {
 		t.Fatalf("Failed to encrypt data: %v", err)
 	}

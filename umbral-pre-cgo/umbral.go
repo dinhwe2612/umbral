@@ -243,6 +243,14 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("umbral error %d: %s", e.Code, e.Message)
 }
 
+// goErrorFromUmbral converts a C UmbralError into a Go *Error and frees the C error buffer.
+func goErrorFromUmbral(errOut C.UmbralError) *Error {
+	msg := C.GoStringN((*C.char)(unsafe.Pointer(errOut.message)), C.int(errOut.message_len))
+	e := &Error{Code: int(errOut.code), Message: msg}
+	C.umbral_error_free(errOut)
+	return e
+}
+
 // GenerateSecretKey generates a random secret key
 func GenerateSecretKey() *SecretKey {
 	ptr := C.umbral_secret_key_random()
@@ -267,9 +275,7 @@ func GenerateSecretKeyFromBytes(bytes []byte) (*SecretKey, error) {
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	sk := &SecretKey{ptr: skOut}
@@ -292,9 +298,7 @@ func GeneratePublicKeyFromBytes(bytes []byte) (*PublicKey, error) {
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	pk := &PublicKey{ptr: pkOut}
@@ -415,9 +419,7 @@ func umbralEncrypt(pk *PublicKey, plaintext []byte) (*Capsule, []byte, error) {
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, nil, goErrorFromUmbral(errorOut)
 	}
 
 	capsule := &Capsule{ptr: capsuleOut}
@@ -447,9 +449,7 @@ func umbralDecryptOriginal(sk *SecretKey, capsule *Capsule, ciphertext []byte) (
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	plaintext := C.GoBytes(unsafe.Pointer(plaintextOut.data), C.int(plaintextOut.len))
@@ -476,9 +476,7 @@ func generateKFrags(delegatingSK *SecretKey, receivingPK *PublicKey, signer *Sig
 	)
 
 	if result < 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	// Convert C array to Go slice
@@ -526,9 +524,7 @@ func (kf *KeyFrag) verify(verifyingPK *PublicKey, delegatingPK, receivingPK *Pub
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	vkf := &VerifiedKeyFrag{ptr: verifiedOut}
@@ -549,9 +545,7 @@ func reencrypt(capsule *Capsule, vkf *VerifiedKeyFrag) (*VerifiedCapsuleFrag, er
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	vcf := &VerifiedCapsuleFrag{ptr: vcfragOut}
@@ -583,9 +577,7 @@ func (cf *CapsuleFrag) verify(capsule *Capsule, verifyingPK, delegatingPK, recei
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	vcf := &VerifiedCapsuleFrag{ptr: verifiedOut}
@@ -625,9 +617,7 @@ func decryptReencrypted(receivingSK *SecretKey, delegatingPK *PublicKey, capsule
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	plaintext := C.GoBytes(unsafe.Pointer(plaintextOut.data), C.int(plaintextOut.len))
@@ -747,9 +737,7 @@ func getSeedKeyFromCapsule(
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	keySeed := C.GoBytes(unsafe.Pointer(keySeedOut.data), C.int(keySeedOut.len))
@@ -821,9 +809,7 @@ func (sd *SymmetricDecryptor) DecryptWithCapsule(ciphertext []byte, capsuleBytes
 	)
 
 	if result != 0 {
-		defer C.umbral_error_free(errorOut)
-		msg := C.GoStringN((*C.char)(unsafe.Pointer(errorOut.message)), C.int(errorOut.message_len))
-		return nil, &Error{Code: int(errorOut.code), Message: msg}
+		return nil, goErrorFromUmbral(errorOut)
 	}
 
 	plaintext := C.GoBytes(unsafe.Pointer(plaintextOut.data), C.int(plaintextOut.len))

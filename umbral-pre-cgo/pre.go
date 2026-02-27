@@ -6,8 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// EncryptWithEthereumKeys encrypts data using Ethereum public key bytes
-func EncrypData(publicKeyBytes []byte, plaintext []byte) ([]byte, []byte, error) {
+// EncryptData encrypts data using Ethereum public key bytes.
+func EncryptData(publicKeyBytes []byte, plaintext []byte) ([]byte, []byte, error) {
 	// Convert Ethereum public key bytes to Umbral public key
 	umbralPK, err := GeneratePublicKeyFromBytes(publicKeyBytes)
 	if err != nil {
@@ -92,21 +92,16 @@ func CreateRekey(
 		return nil, err
 	}
 
-	// Free key fragments
-	for _, vkf := range vkfrags {
-		defer vkf.Free()
-	}
-
-	// Convert verified key fragment to bytes
 	// First unverify to get KeyFrag, then convert to bytes
 	kfrag := vkfrags[0].unverify()
-	defer kfrag.Free()
-
 	kfragBytes, err := keyFragToBytes(kfrag)
+	kfrag.Free()
+	for _, vkf := range vkfrags {
+		vkf.Free()
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	return kfragBytes, nil
 }
 
